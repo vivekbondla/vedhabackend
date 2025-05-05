@@ -1,5 +1,6 @@
 const express = require("express");
-const Vendor = require("../models/Vendor");
+const Vendor = require("../models/VendorModel");
+
 
 const getAllVendors =async (req, res)=>{
     
@@ -12,5 +13,6 @@ const getAllVendors =async (req, res)=>{
       }
 
 }
+
 
 exports.getAllVendors = getAllVendors;
