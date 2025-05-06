@@ -44,4 +44,40 @@ const createSite = async (req, res) => {
   }
 };
 
+const getAllSites = async(req,res) =>{
+try {
+  const sites = await Site.find()
+  .populate("vendors", "vendorsName")
+      .populate("clients", "clientName");
+
+    // Transform vendors and clients to return only names
+    const transformedSites = sites.map(site => ({
+      ...site.toObject(),
+      vendors: site.vendors.map(v => v.vendorsName),
+      clients: site.clients.map(c => c.clientName)
+    }));
+
+    res.status(200).json(transformedSites);
+  // .populate({
+  //   path: "vendors",
+  //   select: "vendorName" // only fetch vendorName from Vendor model
+  // })
+  // .populate({
+  //   path: "clients",
+  //   select: "clientName" // only fetch clientName from Client model
+  // });
+  // // const {vendors} = sites
+  // console.log("sites",sites)
+  // // console.log("vendors",vendors)
+  // res.status(200).json(sites)
+  
+} catch (error) {
+  console.log("error:", error);
+  res.status(500).json({ message: "Server error" });
+  
+}
+
+}
+
 exports.createSite = createSite;
+exports.getAllSites = getAllSites;

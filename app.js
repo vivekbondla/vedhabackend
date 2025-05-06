@@ -4,6 +4,8 @@ const cors = require("cors");
 const vendorRoutes = require("./routes/vendorRoutes");
 const clientRoutes = require("./routes/clientRoutes");
 const siteRoutes = require("./routes/siteRoutes");
+const auditorRoutes = require("./routes/auditorRoutes");
+const scheduleAuditRoutes = require("./routes/scheduleAuditRoutes");
 
 const app = express();
 app.use(cors());
@@ -13,6 +15,8 @@ app.use(express.json());
 app.use("/api/vendors",vendorRoutes);
 app.use("/api/clients",clientRoutes);
 app.use("/api/sites",siteRoutes);
+app.use("/api/auditors",auditorRoutes);
+app.use("/api/audits",scheduleAuditRoutes);
 // Connect MongoDB
 mongoose
   .connect(
