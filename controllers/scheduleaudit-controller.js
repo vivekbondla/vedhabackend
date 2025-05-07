@@ -1,8 +1,10 @@
 const Auditor = require("../models/AuditorModel");
 const Vendor = require("../models/VendorModel");
+const Site = require("../models/SiteModel");
 const Client = require("../models/ClientModel");
 const ScheduleAudit = require("../models/ScheduleAuditModel");
-const {sendEmail} = require("../utils/emailService")
+const {sendEmail} = require("../utils/emailService");
+const { getVendorEmailsBySiteName } = require("../utils/getVendorEmailsBySiteName");
 
 const createScheduleAudit = async (req, res) => {
   try {
@@ -22,12 +24,14 @@ const createScheduleAudit = async (req, res) => {
 
     // 2. Fetch email addresses
     const clients = await Client.find({ clientName: { $in: clientName } });
-    const vendors = await Vendor.find({ siteName }); // assuming vendors are linked via site
-    const auditor = await Auditor.findOne({ name: auditorName });
+    // const sites = await Site.find({ siteName }); // assuming vendors are linked via site
+    const auditor = await Auditor.findOne({ auditorName });
+    console.log({clients,auditor})
 
-    const clientEmails = clients.map(c => c.email);
-    const vendorEmails = vendors.map(v => v.email);
-    const auditorEmail = auditor?.email;
+    const clientEmails = clients.map(c => c.clientEmail);
+    const vendorEmails = await getVendorEmailsBySiteName(siteName)
+    const auditorEmail = auditor?.auditorEmail;
+    console.log({clientEmails,vendorEmails,auditorEmail})
 
     const recipients = [...clientEmails, ...vendorEmails, auditorEmail].filter(Boolean);
 
@@ -50,4 +54,16 @@ const createScheduleAudit = async (req, res) => {
   }
 };
 
-exports.createScheduleAudit =createScheduleAudit
+const getAllScheduledAudits = async(req,res)=>{
+   try {
+          const scheduledAudits = await ScheduleAudit.find();
+          res.status(200).json(scheduledAudits);
+        } catch (error) {
+          console.log("error:", error);
+          res.status(500).json({ message: "Server error while getting scheduled audits..." });
+        }
+
+}
+
+exports.createScheduleAudit = createScheduleAudit;
+exports.getAllScheduledAudits = getAllScheduledAudits;
