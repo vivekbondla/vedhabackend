@@ -6,7 +6,7 @@ const clientSchema = new mongoose.Schema({
     clientEmail:{type: String, require:true},
     clientPhone:{type: String, require:true},
     clientAddress:{type: String, require:true},
-    clientState:{type: String, require:true},
+    clientStateLoc:{type: String, require:true},
     clientCity:{type: String, require:true},
     clientPincode:{type: String, require:true},
 });

@@ -1,4 +1,17 @@
 const Auditor = require("../models/AuditorModel");
+
+const createAuditor = async (req, res) => {
+  const  {auditorCity,auditorCode,auditorEmail,auditorName,auditorPhone,auditorPincode,auditorStateLoc} = req.body;
+
+  try {
+    const newAuditor = new Auditor( {auditorCity,auditorCode,auditorEmail,auditorName,auditorPhone,auditorPincode,auditorStateLoc});
+    const savedAuditor = await newAuditor.save();
+    res.status(201).json(savedAuditor);
+  } catch (error) {
+    console.error("Error creating Auditor:", error);
+    res.status(500).json({ message: "Server error while creating auditor" });
+  }
+};
 const getAllAuditors =async (req, res)=>{
     
     try {
@@ -12,3 +25,5 @@ const getAllAuditors =async (req, res)=>{
 }
 
 exports.getAllAuditors = getAllAuditors;
+exports.createAuditor = createAuditor;
+

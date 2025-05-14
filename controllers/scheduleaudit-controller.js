@@ -36,13 +36,20 @@ const createScheduleAudit = async (req, res) => {
     const recipients = [...clientEmails, ...vendorEmails, auditorEmail].filter(Boolean);
 
     // 3. Send email
-    const subject = `Audit Scheduled for ${siteName}`;
+    const subject = `DO NOT REPLY - Audit Schedule - for ${siteName} with client ${clientName}`;
     const message = `
-      An audit has been scheduled.
+      A new Contractor audit has been scheduled for the site ${siteName}
+
+      We would request you to kindly upload the required documents at link for audit 
+      on or before ${endDate} so that we can complete the audit as scheduled.
+
+      Supplier partner will not be able to upload the documents after ${endDate}.
+
+      Below are the details regarding the audit schedule:
       Site: ${siteName}
       Audit Type: ${auditType}
       Schedule Type: ${auditScheduleType}
-      Dates: ${startDate} to ${endDate}
+      Audit Dates: ${startDate} to ${endDate}
     `;
 
     await sendEmail(recipients, subject, message);

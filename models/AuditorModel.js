@@ -5,7 +5,7 @@ const auditorSchema = new mongoose.Schema({
     auditorCode:{type: String, required: true},
     auditorPincode:{type: String, required: true},
     auditorCity:{type: String, required: true},
-    auditorState:{type: String, required: true},
+    auditorStateLoc:{type: String, required: true},
     auditorEmail:{type: String, required: true},
     auditorPhone:{type: String, required: true},
 
