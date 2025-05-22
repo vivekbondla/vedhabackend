@@ -6,12 +6,12 @@ const clientRoutes = require("./routes/clientRoutes");
 const siteRoutes = require("./routes/siteRoutes");
 const auditorRoutes = require("./routes/auditorRoutes");
 const scheduleAuditRoutes = require("./routes/scheduleAuditRoutes");
-
+const userRoutes = require("./routes/userRoutes");
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-
+app.use("/api/users", userRoutes);
 app.use("/api/vendors",vendorRoutes);
 app.use("/api/clients",clientRoutes);
 app.use("/api/sites",siteRoutes);

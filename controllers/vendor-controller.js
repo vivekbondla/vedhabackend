@@ -1,5 +1,6 @@
 const express = require("express");
 const Vendor = require("../models/VendorModel");
+const User = require("../models/UserModel");
 
 const getAllVendors = async (req, res) => {
   try {
@@ -37,7 +38,15 @@ const createVendor = async (req, res) => {
       vendorAddress,
     })
     const savedVendor = await newVendor.save();
-    res.status(201).json(savedVendor)
+     const user = await User.create({       // From request body
+      email: req.body.vendorEmail,         // or another field
+      password: req.body.password,         // Will be hashed
+      role: "vendor",
+      refId: savedVendor._id,
+      refModel: "Vendor",
+    });
+    // res.status(201).json(savedVendor)
+    res.status(201).json({ message: "Vendor and user created", savedVendor, user });
   } catch (error) {
     console.error("Error creating vendor:", error);
     res.status(500).json({ message: "Server error while creating vendor" });
