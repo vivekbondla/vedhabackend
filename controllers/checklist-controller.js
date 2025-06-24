@@ -1,4 +1,3 @@
-// routes/checklistRoutes.js
 const express = require("express");
 const router = express.Router();
 const upload = require("../middleware/upload");
@@ -38,7 +37,7 @@ const ChecklistSubmission = require("../models/CheckListSubmissionModel");
 // };
 const uploadDocuments = async (req, res) => {
   try {
-    const { siteName, siteLocation, clientName, checklist } = req.body;
+    const { siteName, vendorName, siteLocation, clientName, auditorName, checklist } = req.body;
     const parsedChecklist = JSON.parse(checklist);
     const parsedUploads = req.files || [];
 
@@ -46,6 +45,7 @@ const uploadDocuments = async (req, res) => {
 
     const existingSubmission = await ChecklistSubmission.findOne({
       siteName,
+      vendorName,
       siteLocation,
       clientName: client,
     });
@@ -55,7 +55,7 @@ const uploadDocuments = async (req, res) => {
       let blockedFiles = [];
 
       parsedChecklist.forEach((label, index) => {
-        const file = parsedUploads.find(f => f.fieldname === `file${index}`);
+        const file = parsedUploads.find(f => f.fieldname === label);
         if (!file) return;
 
         const existingFile = existingSubmission.checklistFiles.find(
@@ -76,7 +76,6 @@ const uploadDocuments = async (req, res) => {
         } else {
           // New label being uploaded
           existingSubmission.checklistFiles.push({
-            index,
             label,
             fileName: file.originalname,
             filePath: file.path,
@@ -109,9 +108,8 @@ const uploadDocuments = async (req, res) => {
 
     // Create new submission if not existing
     const checklistFiles = parsedChecklist.map((label, index) => {
-      const file = parsedUploads.find(f => f.fieldname === `file${index}`);
+      const file = parsedUploads.find(f => f.fieldname === label);
       return {
-        index,
         label,
         fileName: file?.originalname || "",
         filePath: file?.path || "",
@@ -122,8 +120,10 @@ const uploadDocuments = async (req, res) => {
 
     const newSubmission = new ChecklistSubmission({
       siteName,
+      vendorName,
       siteLocation,
       clientName: client,
+      auditorName,
       checklistFiles,
     });
 
@@ -142,6 +142,8 @@ const uploadDocuments = async (req, res) => {
 
 
 const getSubmissions = async (req, res) => {
+    //Need to send the list of files of the auditor that logins need,
+  // expect auditorName from frontend to get only those files 
   try {
     const submissions = await ChecklistSubmission.find({});
     res.json(submissions);
@@ -150,19 +152,48 @@ const getSubmissions = async (req, res) => {
   }
 };
 
+// const reviewChecklist = async (req, res) => {
+//   console.log(req.body);
+//   const { submissionId, fileIndex, status, remarks } = req.body;
+//   const checklistSubmission = await ChecklistSubmission.findById(submissionId);
+//   if (!checklistSubmission)
+//     return res.status(404).json({ message: "Not found" });
+
+//   checklistSubmission.checklistFiles[fileIndex].status = status;
+//   checklistSubmission.checklistFiles[fileIndex].remarks = remarks;
+//   await checklistSubmission.save();
+
+//   res.status(200).json({ message: "Reviewed successfully" });
+// };
+// POST /api/upload/review-checklist
+// Accepts: { submissionId, updates: [ { index, status, remarks } ] }
+
 const reviewChecklist = async (req, res) => {
-  console.log(req.body);
-  const { submissionId, fileIndex, status, remarks } = req.body;
-  const checklistSubmission = await ChecklistSubmission.findById(submissionId);
-  if (!checklistSubmission)
-    return res.status(404).json({ message: "Not found" });
+  try {
+    const { submissionId, updates } = req.body;
 
-  checklistSubmission.checklistFiles[fileIndex].status = status;
-  checklistSubmission.checklistFiles[fileIndex].remarks = remarks;
-  await checklistSubmission.save();
+    const submission = await ChecklistSubmission.findById(submissionId);
+    if (!submission) {
+      return res.status(404).json({ message: "Submission not found" });
+    }
 
-  res.status(200).json({ message: "Reviewed successfully" });
+    updates.forEach(({ index, status, remarks }) => {
+      const file = submission.checklistFiles[index];
+      if (file && file.status === "Pending") {
+        file.status = status;
+        file.remarks = remarks;
+      }
+    });
+
+    await submission.save();
+
+    res.status(200).json({ message: "Checklist updated successfully", submission });
+  } catch (error) {
+    console.error("Bulk review error:", error);
+    res.status(500).json({ message: "Failed to review checklist" });
+  }
 };
+
 
 exports.uploadDocuments = uploadDocuments;
 exports.getSubmissions = getSubmissions;

@@ -26,12 +26,12 @@ const createScheduleAudit = async (req, res) => {
     const clients = await Client.find({ clientName: { $in: clientName } });
     // const sites = await Site.find({ siteName }); // assuming vendors are linked via site
     const auditor = await Auditor.findOne({ auditorName });
-    console.log({clients,auditor})
+    // console.log({clients,auditor})
 
     const clientEmails = clients.map(c => c.clientEmail);
     const vendorEmails = await getVendorEmailsBySiteName(siteName)
     const auditorEmail = auditor?.auditorEmail;
-    console.log({clientEmails,vendorEmails,auditorEmail})
+    // console.log({clientEmails,vendorEmails,auditorEmail})
 
     const recipients = [...clientEmails, ...vendorEmails, auditorEmail].filter(Boolean);
 

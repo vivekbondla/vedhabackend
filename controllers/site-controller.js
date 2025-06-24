@@ -58,18 +58,6 @@ try {
     }));
 
     res.status(200).json(transformedSites);
-  // .populate({
-  //   path: "vendors",
-  //   select: "vendorName" // only fetch vendorName from Vendor model
-  // })
-  // .populate({
-  //   path: "clients",
-  //   select: "clientName" // only fetch clientName from Client model
-  // });
-  // // const {vendors} = sites
-  // console.log("sites",sites)
-  // // console.log("vendors",vendors)
-  // res.status(200).json(sites)
   
 } catch (error) {
   console.log("error:", error);
