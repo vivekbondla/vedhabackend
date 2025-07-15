@@ -27,6 +27,7 @@ const getReportSummary =  async (req, res) => {
       vendorName: sub.vendorName,
       siteLocation: sub.siteLocation,
       percentages: calculatePercentages(sub.checklistFiles),
+      checklistFiles:sub.checklistFiles
     }));
 
     res.status(200).json({ count: summaries.length, summaries });
