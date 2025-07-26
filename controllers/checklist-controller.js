@@ -3,41 +3,9 @@ const router = express.Router();
 const upload = require("../middleware/upload");
 const ChecklistSubmission = require("../models/CheckListSubmissionModel");
 
-// const uploadDocuments = async (req, res) => {
-//   try {
-//     const { siteName, siteLocation, clientName, checklist, checklistUploads } =
-//       req.body;
-
-//     const parsedChecklist = JSON.parse(checklist); // array
-//     const parsedUploads = req.files || [];
-
-//     const checklistFiles = parsedChecklist.map((label, index) => {
-//       const file = parsedUploads.find((f) => f.fieldname === `file${index}`);
-//       return {
-//         index,
-//         label,
-//         fileName: file?.originalname || "",
-//         filePath: file?.path || "",
-//       };
-//     });
-
-//     const submission = new ChecklistSubmission({
-//       siteName,
-//       siteLocation,
-//       clientName: Array.isArray(clientName) ? clientName[0] : clientName,
-//       checklistFiles,
-//     });
-
-//     await submission.save();
-//     res.status(200).json({ message: "Checklist saved", submission });
-//   } catch (error) {
-//     console.error(error);
-//     res.status(500).json({ message: "Failed to save checklist" });
-//   }
-// };
 const uploadDocuments = async (req, res) => {
   try {
-    const { siteName, vendorName, siteLocation, clientName, auditorName, checklist } = req.body;
+    const { siteName, vendorName, siteLocation, clientName, auditorName, checklist, auditMonth, auditYear } = req.body;
     const parsedChecklist = JSON.parse(checklist);
     const parsedUploads = req.files || [];
 
@@ -47,6 +15,8 @@ const uploadDocuments = async (req, res) => {
       siteName,
       vendorName,
       siteLocation,
+      auditMonth,
+      auditYear,
       clientName: client,
     });
 
@@ -118,6 +88,10 @@ const uploadDocuments = async (req, res) => {
       };
     });
 
+    // const now = new Date();
+    // const auditMonth = now.getMonth() + 1;
+    // const auditYear = now.getFullYear();
+
     const newSubmission = new ChecklistSubmission({
       siteName,
       vendorName,
@@ -125,6 +99,8 @@ const uploadDocuments = async (req, res) => {
       clientName: client,
       auditorName,
       checklistFiles,
+      auditMonth,
+      auditYear
     });
 
     await newSubmission.save();

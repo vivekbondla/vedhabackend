@@ -16,6 +16,9 @@ const ChecklistSubmissionSchema = new mongoose.Schema({
   clientName: String,
   auditorName: String,
   checklistFiles: [ChecklistFileSchema],
+  auditDate: { type: Date, default: Date.now },
+  auditMonth: String, // e.g., 7 for July
+  auditYear: Number,
   submittedAt: { type: Date, default: Date.now },
 });
 
