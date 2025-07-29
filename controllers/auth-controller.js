@@ -18,6 +18,25 @@ const login = async (req, res) => {
     if (!isPassMatch)
       return res.status(401).json({ message: "Invalid credentials..." });
 
+    const modelMap = {
+      Auditor: require("../models/AuditorModel"),
+      Vendor: require("../models/VendorModel"),
+      Client: require("../models/ClientModel"),
+    };
+
+    const RefModel = modelMap[user.refModel];
+    let fullProfile = null;
+    let username = null;
+
+    if (RefModel && user.refId) {
+      fullProfile = await RefModel.findById(user.refId);
+      username =
+        fullProfile?.auditorName ||
+        fullProfile?.vendorsName ||
+        fullProfile?.clientName ||
+        null;
+    }
+
     const token = jwt.sign(
       {
         email: user.email,
@@ -30,9 +49,11 @@ const login = async (req, res) => {
     res.status(200).json({
       token,
       user: {
-        username: user.username,
+        username: username || user.email,
         role: user.role,
         email: user.email,
+        refId: user.refId, // This is the Vendor/Auditor ID
+        refModel: user.refModel,
       },
     });
   } catch (error) {
@@ -40,5 +61,22 @@ const login = async (req, res) => {
     res.status(500).json({ message: "Server error for login" });
   }
 };
+const verifyToken = async (req, res, next) => {
+  const token = req.headers.authorization?.split(" ")[1]; // "Bearer <token>"
+
+  if (!token) {
+    return res.status(401).json({ message: "Access denied. Token missing." });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded; // Attach user info to request
+    next();
+  } catch (error) {
+    return res.status(403).json({ message: "Invalid token" });
+  }
+};
+
+exports.verifyToken = verifyToken;
 
 exports.login = login;

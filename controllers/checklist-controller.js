@@ -5,9 +5,21 @@ const ChecklistSubmission = require("../models/CheckListSubmissionModel");
 
 const uploadDocuments = async (req, res) => {
   try {
-    const { siteName, vendorName, siteLocation, clientName, auditorName, checklist, auditMonth, auditYear } = req.body;
+    const {
+      siteName,
+      vendorName,
+      siteLocation,
+      clientName,
+      auditorName,
+      checklist,
+      auditMonth,
+      auditYear,
+      notApplicableList,
+    } = req.body;
     const parsedChecklist = JSON.parse(checklist);
     const parsedUploads = req.files || [];
+    const parsedNotApplicableList = JSON.parse(notApplicableList);
+    // console.log(parsedNotApplicableList)
 
     const client = Array.isArray(clientName) ? clientName[0] : clientName;
 
@@ -25,12 +37,14 @@ const uploadDocuments = async (req, res) => {
       let blockedFiles = [];
 
       parsedChecklist.forEach((label, index) => {
-        const file = parsedUploads.find(f => f.fieldname === label);
+        const file = parsedUploads.find((f) => f.fieldname === label);
         if (!file) return;
 
         const existingFile = existingSubmission.checklistFiles.find(
-          item => item.label === label
+          (item) => item.label === label
         );
+        const isNotApplicable = parsedNotApplicableList?.[label] === true;
+        console.log("label:", label, "isNotApplicable:", isNotApplicable);
 
         if (existingFile) {
           if (existingFile.status === "Approved") {
@@ -39,8 +53,12 @@ const uploadDocuments = async (req, res) => {
             // Overwrite file info for Rejected or Pending
             existingFile.fileName = file.originalname;
             existingFile.filePath = file.path;
-            existingFile.status = "Pending"; // reset status to pending
-            existingFile.remarks = "";
+            existingFile.status = isNotApplicable
+              ? "Not Applicable"
+              : "Pending"; // reset status to pending
+            existingFile.remarks = isNotApplicable
+              ? "Marked as Not Applicable by Vendor"
+              : "";
             updated = true;
           }
         } else {
@@ -49,8 +67,10 @@ const uploadDocuments = async (req, res) => {
             label,
             fileName: file.originalname,
             filePath: file.path,
-            status: "Pending",
-            remarks: "",
+            status: isNotApplicable ? "Not Applicable" : "Pending",
+            remarks: isNotApplicable
+              ? "Marked as Not Applicable by Vendor"
+              : "",
           });
           updated = true;
         }
@@ -77,14 +97,27 @@ const uploadDocuments = async (req, res) => {
     }
 
     // Create new submission if not existing
-    const checklistFiles = parsedChecklist.map((label, index) => {
-      const file = parsedUploads.find(f => f.fieldname === label);
+    // const checklistFiles = parsedChecklist.map((label, index) => {
+    //   const file = parsedUploads.find(f => f.fieldname === label);
+    //   return {
+    //     label,
+    //     fileName: file?.originalname || "",
+    //     filePath: file?.path || "",
+    //     status: "Pending",
+    //     remarks: "",
+    //   };
+    // });
+    const checklistFiles = parsedChecklist.map((label) => {
+      const file = parsedUploads.find((f) => f.fieldname === label);
+      const isNotApplicable = parsedNotApplicableList?.[label] === true;
+      console.log("label:", label, "isNotApplicable:", isNotApplicable);
+
       return {
         label,
         fileName: file?.originalname || "",
         filePath: file?.path || "",
-        status: "Pending",
-        remarks: "",
+        status: isNotApplicable ? "Not Applicable" : "Pending",
+        remarks: isNotApplicable ? "Marked as Not Applicable by Vendor" : "",
       };
     });
 
@@ -100,7 +133,7 @@ const uploadDocuments = async (req, res) => {
       auditorName,
       checklistFiles,
       auditMonth,
-      auditYear
+      auditYear,
     });
 
     await newSubmission.save();
@@ -115,34 +148,23 @@ const uploadDocuments = async (req, res) => {
   }
 };
 
-
-
 const getSubmissions = async (req, res) => {
-    //Need to send the list of files of the auditor that logins need,
-  // expect auditorName from frontend to get only those files 
+  //Need to send the list of files of the auditor that logins need,
+  // expect auditorName from frontend to get only those files
+  console.log(req.user)
+  const userRole = req.user.role;
+  const userEmail = req.user.email;
+  const query = userRole === "admin"?{}:{userEmail}
+  if (userRole !== "auditor" && userRole !== "admin") {
+    return res.status(403).json({ message: "Access denied for this role." });
+  }
   try {
-    const submissions = await ChecklistSubmission.find({});
+    const submissions = await ChecklistSubmission.find(query);
     res.json(submissions);
   } catch (err) {
     res.status(500).json({ message: "Error fetching submissions" });
   }
 };
-
-// const reviewChecklist = async (req, res) => {
-//   console.log(req.body);
-//   const { submissionId, fileIndex, status, remarks } = req.body;
-//   const checklistSubmission = await ChecklistSubmission.findById(submissionId);
-//   if (!checklistSubmission)
-//     return res.status(404).json({ message: "Not found" });
-
-//   checklistSubmission.checklistFiles[fileIndex].status = status;
-//   checklistSubmission.checklistFiles[fileIndex].remarks = remarks;
-//   await checklistSubmission.save();
-
-//   res.status(200).json({ message: "Reviewed successfully" });
-// };
-// POST /api/upload/review-checklist
-// Accepts: { submissionId, updates: [ { index, status, remarks } ] }
 
 const reviewChecklist = async (req, res) => {
   try {
@@ -163,13 +185,14 @@ const reviewChecklist = async (req, res) => {
 
     await submission.save();
 
-    res.status(200).json({ message: "Checklist updated successfully", submission });
+    res
+      .status(200)
+      .json({ message: "Checklist updated successfully", submission });
   } catch (error) {
     console.error("Bulk review error:", error);
     res.status(500).json({ message: "Failed to review checklist" });
   }
 };
-
 
 exports.uploadDocuments = uploadDocuments;
 exports.getSubmissions = getSubmissions;

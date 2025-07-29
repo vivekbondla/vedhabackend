@@ -37,6 +37,7 @@ const createClient = async (req, res) => {
     const user = await User.create({
       email: req.body.clientEmail,
       password: req.body.password,
+      userName: req.body.clientName,
       role: "client",
       refId: savedClient._id,
       refModel: "Client"

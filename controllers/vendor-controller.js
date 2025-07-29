@@ -41,6 +41,7 @@ const createVendor = async (req, res) => {
      const user = await User.create({       // From request body
       email: req.body.vendorEmail,         // or another field
       password: req.body.password,         // Will be hashed
+      userName: req.body.vendorsName,
       role: "vendor",
       refId: savedVendor._id,
       refModel: "Vendor",
