@@ -67,5 +67,63 @@ try {
 
 }
 
+const updateSite = async (req, res) => {
+  try {
+    const siteId = req.params.id;
+    const {
+      siteName,
+      siteCode,
+      siteAddress,
+      siteCity,
+      siteStateLoc,
+      vendors,
+      clients,
+      checklist,
+    } = req.body;
+
+    // Get ObjectIds from names
+    const vendorDocs = await Vendor.find({ vendorsName: { $in: vendors } });
+    const vendorIds = vendorDocs.map((v) => v._id);
+
+    const clientDocs = await Client.find({ clientName: { $in: clients } });
+    const clientIds = clientDocs.map((c) => c._id);
+
+    const updatedSite = await Site.findByIdAndUpdate(
+      siteId,
+      {
+        siteName,
+        siteCode,
+        siteAddress,
+        siteCity,
+        siteStateLoc,
+        vendors: vendorIds,
+        clients: clientIds,
+        checklist,
+      },
+      { new: true }
+    );
+
+    res.status(200).json(updatedSite);
+  } catch (error) {
+    console.error("Error updating site:", error);
+    res.status(500).json({ message: "Server error while updating site" });
+  }
+};
+
+const deleteSite = async (req, res) => {
+  const siteId = req.params.id;
+  try {
+    await Site.findByIdAndDelete(siteId);
+    res.status(200).json({ message: "Site deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting site:", error);
+    res.status(500).json({ message: "Server error while deleting site" });
+  }
+};
+
+
+
 exports.createSite = createSite;
 exports.getAllSites = getAllSites;
+exports.updateSite = updateSite;
+exports.deleteSite = deleteSite;
