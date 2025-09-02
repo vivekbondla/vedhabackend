@@ -2,6 +2,8 @@ const express = require("express");
 const router = express.Router();
 const upload = require("../middleware/upload");
 const ChecklistSubmission = require("../models/CheckListSubmissionModel");
+const Auditor = require("../models/AuditorModel");
+const Vendor = require("../models/VendorModel");
 
 const uploadDocuments = async (req, res) => {
   try {
@@ -16,10 +18,10 @@ const uploadDocuments = async (req, res) => {
       auditYear,
       notApplicableList,
     } = req.body;
+
     const parsedChecklist = JSON.parse(checklist);
     const parsedUploads = req.files || [];
     const parsedNotApplicableList = JSON.parse(notApplicableList);
-    // console.log(parsedNotApplicableList)
 
     const client = Array.isArray(clientName) ? clientName[0] : clientName;
 
@@ -32,11 +34,27 @@ const uploadDocuments = async (req, res) => {
       clientName: client,
     });
 
+    const mapFile = (label) => {
+      const file = parsedUploads.find((f) => f.fieldname === label);
+      const isNotApplicable = parsedNotApplicableList?.[label] === true;
+
+      return {
+        label,
+        fileName: file?.originalname || "",
+        filePath: file?.key || "", // S3 key (e.g. checklist/123_file.pdf)
+        fileUrl: file?.location || "", // full S3 URL
+        status: isNotApplicable ? "Not Applicable" : "Pending",
+        remarks: isNotApplicable
+          ? "Marked as Not Applicable by Vendor"
+          : "",
+      };
+    };
+
     if (existingSubmission) {
       let updated = false;
       let blockedFiles = [];
 
-      parsedChecklist.forEach((label, index) => {
+      parsedChecklist.forEach((label) => {
         const file = parsedUploads.find((f) => f.fieldname === label);
         if (!file) return;
 
@@ -44,93 +62,58 @@ const uploadDocuments = async (req, res) => {
           (item) => item.label === label
         );
         const isNotApplicable = parsedNotApplicableList?.[label] === true;
-        console.log("label:", label, "isNotApplicable:", isNotApplicable);
 
         if (existingFile) {
           if (existingFile.status === "Approved") {
             blockedFiles.push(label);
           } else {
-            // Overwrite file info for Rejected or Pending
             existingFile.fileName = file.originalname;
-            existingFile.filePath = file.path;
-            existingFile.status = isNotApplicable
-              ? "Not Applicable"
-              : "Pending"; // reset status to pending
+            existingFile.filePath = file.key;
+            existingFile.fileUrl = file.location;
+            existingFile.status = isNotApplicable ? "Not Applicable" : "Pending";
             existingFile.remarks = isNotApplicable
               ? "Marked as Not Applicable by Vendor"
               : "";
             updated = true;
           }
         } else {
-          // New label being uploaded
-          existingSubmission.checklistFiles.push({
-            label,
-            fileName: file.originalname,
-            filePath: file.path,
-            status: isNotApplicable ? "Not Applicable" : "Pending",
-            remarks: isNotApplicable
-              ? "Marked as Not Applicable by Vendor"
-              : "",
-          });
+          existingSubmission.checklistFiles.push(mapFile(label));
           updated = true;
         }
       });
 
-      if (updated) {
-        await existingSubmission.save();
-      }
+      if (updated) await existingSubmission.save();
 
-      const response = {
+      return res.json({
         message: updated
           ? "Checklist updated for existing site"
           : "No new or replaceable files uploaded",
         submission: existingSubmission,
-      };
-
-      if (blockedFiles.length > 0) {
-        response.blocked = `Files for the following labels are already approved and cannot be replaced: ${blockedFiles.join(
-          ", "
-        )}`;
-      }
-
-      return res.status(updated ? 200 : 400).json(response);
+        blocked:
+          blockedFiles.length > 0
+            ? `Files for the following labels are already approved: ${blockedFiles.join(
+                ", "
+              )}`
+            : undefined,
+      });
     }
 
-    // Create new submission if not existing
-    // const checklistFiles = parsedChecklist.map((label, index) => {
-    //   const file = parsedUploads.find(f => f.fieldname === label);
-    //   return {
-    //     label,
-    //     fileName: file?.originalname || "",
-    //     filePath: file?.path || "",
-    //     status: "Pending",
-    //     remarks: "",
-    //   };
-    // });
-    const checklistFiles = parsedChecklist.map((label) => {
-      const file = parsedUploads.find((f) => f.fieldname === label);
-      const isNotApplicable = parsedNotApplicableList?.[label] === true;
-      console.log("label:", label, "isNotApplicable:", isNotApplicable);
+    // New submission
+    const checklistFiles = parsedChecklist.map(mapFile);
 
-      return {
-        label,
-        fileName: file?.originalname || "",
-        filePath: file?.path || "",
-        status: isNotApplicable ? "Not Applicable" : "Pending",
-        remarks: isNotApplicable ? "Marked as Not Applicable by Vendor" : "",
-      };
-    });
-
-    // const now = new Date();
-    // const auditMonth = now.getMonth() + 1;
-    // const auditYear = now.getFullYear();
+    const auditor = await Auditor.findOne({ auditorName });
+    const auditorEmail = auditor?.auditorEmail;
+    const vendor = await Vendor.findOne({vendorsName: vendorName});
+    const vendorEmail = vendor?.vendorEmail;
 
     const newSubmission = new ChecklistSubmission({
       siteName,
       vendorName,
+      vendorEmail,
       siteLocation,
       clientName: client,
       auditorName,
+      auditorEmail,
       checklistFiles,
       auditMonth,
       auditYear,
@@ -150,14 +133,21 @@ const uploadDocuments = async (req, res) => {
 
 const getSubmissions = async (req, res) => {
   //Need to send the list of files of the auditor that logins need,
-  // expect auditorName from frontend to get only those files
-  console.log(req.user)
-  const userRole = req.user.role;
-  const userEmail = req.user.email;
-  const query = userRole === "admin"?{}:{userEmail}
-  if (userRole !== "auditor" && userRole !== "admin") {
+    const { role, email, username } = req.user; // depends on what you store in JWT
+    
+    let query = {};
+
+  if (role === "auditor") {
+    query = { auditorEmail: email}; // match based on JWT payload
+  } else if (role === "vendor") {
+    query = { vendorEmail: email};
+  } else if (role === "admin") {
+    query = {}; // all submissions
+  } else {
     return res.status(403).json({ message: "Access denied for this role." });
   }
+  console.log("Query",query);
+  
   try {
     const submissions = await ChecklistSubmission.find(query);
     res.json(submissions);

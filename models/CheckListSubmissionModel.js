@@ -5,6 +5,7 @@ const ChecklistFileSchema = new mongoose.Schema({
   label: String,
   fileName: String, // Original file name
   filePath: String, // Local path on server
+  fileUrl: String,
   status:{type:String,enum: ["Pending", "Approved", "Rejected", "Not Applicable"], default: "Pending"},
   remarks: { type: String, default: "" },
 });
@@ -12,9 +13,11 @@ const ChecklistFileSchema = new mongoose.Schema({
 const ChecklistSubmissionSchema = new mongoose.Schema({
   siteName: String,
   vendorName: String,
+  vendorEmail: String,
   siteLocation: String,
   clientName: String,
   auditorName: String,
+  auditorEmail: String,
   checklistFiles: [ChecklistFileSchema],
   auditDate: { type: Date, default: Date.now },
   auditMonth: String, // e.g., 7 for July
