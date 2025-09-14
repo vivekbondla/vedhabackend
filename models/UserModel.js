@@ -1,25 +1,30 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
 
-const userSchema = new mongoose.Schema({
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  role: {
-    type: String,
-    enum: ["admin", "vendor", "client", "auditor"],
-    required: true
+const userSchema = new mongoose.Schema(
+  {
+    email: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
+    resetPasswordToken: String,
+    resetPasswordExpires: Date,
+    role: {
+      type: String,
+      enum: ["admin", "vendor", "client", "auditor"],
+      required: true,
+    },
+    refId: {
+      type: mongoose.Schema.Types.ObjectId,
+      refPath: "refModel",
+    },
+    refModel: {
+      type: String,
+      enum: ["Vendor", "Client", "Auditor"],
+    },
   },
-  refId: {
-    type: mongoose.Schema.Types.ObjectId,
-    refPath: "refModel"
-  },
-  refModel: {
-    type: String,
-    enum: ["Vendor", "Client", "Auditor"]
+  {
+    timestamps: true,
   }
-}, {
-  timestamps: true
-});
+);
 
 // Encrypt password before saving
 userSchema.pre("save", async function (next) {

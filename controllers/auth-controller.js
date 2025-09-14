@@ -2,6 +2,9 @@ const User = require("../models/UserModel");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const dotenv = require("dotenv");
+const crypto = require("crypto");
+const nodemailer = require("nodemailer");
+
 dotenv.config();
 
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -77,6 +80,74 @@ const verifyToken = async (req, res, next) => {
   }
 };
 
-exports.verifyToken = verifyToken;
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ message: "User not found" });
 
+    // Generate reset token
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordExpires = Date.now() + 15 * 60 * 1000; // 15 min expiry
+    await user.save();
+
+    // Send email
+    const resetLink = `https://vedahr.netlify.app/resetPassword/${resetToken}`;
+    await sendResetEmail(email, resetLink);
+
+    res.json({ message: "Password reset link sent to your email." });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error sending reset link." });
+  }
+};
+
+const resetPassword = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { newPassword } = req.body;
+
+    const user = await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpires: { $gt: Date.now() },
+    });
+
+    if (!user)
+      return res.status(400).json({ message: "Invalid or expired token." });
+
+    user.password = newPassword;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+
+    await user.save();
+    res.json({ message: "Password reset successful. Please log in." });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error resetting password." });
+  }
+};
+
+// Helper function to send email
+async function sendResetEmail(to, link) {
+  const transporter = nodemailer.createTransport({
+    service: "gmail", // or SES if using AWS
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+
+  await transporter.sendMail({
+    from: `"Veda HR App" <${process.env.EMAIL_USER}>`,
+    to,
+    subject: "Password Reset",
+    html: `<p>You requested a password reset.</p>
+           <p><a href="${link}">Click here to reset your password</a></p>`,
+  });
+}
+
+exports.verifyToken = verifyToken;
 exports.login = login;
+exports.forgotPassword = forgotPassword;
+exports.resetPassword = resetPassword;
