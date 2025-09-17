@@ -11,23 +11,7 @@ const userRoutes = require("./routes/userRoutes");
 const checklistUploadRoutes = require("./routes/checklistUploadRoutes");
 const auditReportRoutes = require("./routes/auditReportRoutes");
 const app = express();
-// ✅ Configure CORS explicitly
-app.use(cors({
-  origin: "https://vedahr.netlify.app", // Your frontend URL
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true, // If you are sending cookies or auth headers
-}));
-
-// ✅ Handle OPTIONS preflight manually (important!)
-app.options("*", cors({
-  origin: "https://vedahr.netlify.app",
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true,
-}));
-// app.use(cors());
-
+app.use(cors());
 app.use(express.json());
 dotenv.config();
 app.use("/uploads", express.static("uploads")); 
