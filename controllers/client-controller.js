@@ -1,12 +1,53 @@
 const Client = require("../models/ClientModel");
+const Site = require("../models/SiteModel");
 const User = require("../models/UserModel");
+const ScheduleAudit = require("../models/ScheduleAuditModel");
+
 const getAllClients = async (req, res) => {
   try {
-    const clients = await Client.find();
-    res.status(200).json(clients);
-  } catch (error) {
-    console.log("error:", error);
-    res.status(500).json({ message: "Server error" });
+    const userRole = req.user.role;
+    const userRefId = req.user.refId;
+    const userEmail = req.user.email;
+    const userName = req.user.username;
+
+    let clients = [];
+
+    if (userRole === "admin") {
+      // Admin gets all clients
+      clients = await Client.find();
+    } else if (userRole === "vendor") {
+      // Vendor gets only their clients (via sites)
+      const sites = await Site.find({ vendors: userRefId }).populate("clients");
+      const clientSet = new Set();
+
+      sites.forEach((site) => {
+        site.clients.forEach((client) => {
+          clientSet.add(client._id.toString());
+        });
+      });
+
+      clients = await Client.find({
+        _id: { $in: Array.from(clientSet) },
+      });
+    } else if (userRole === "auditor") {
+      // ✅ Auditor can see only clients they are assigned to in ScheduleAudit
+      const audits = await ScheduleAudit.find({ auditorName: userEmail });
+
+      // Extract unique client names from audits
+      const clientNames = [...new Set(audits.flatMap(a => a.clientName))];
+
+      // Find clients that match those names
+      clients = await Client.find({ clientEmail: { $in: clientNames } });
+    } else if (userRole === "client") {
+      clients = await Client.find({ clientEmail: userEmail });
+    } else {
+      return res.status(403).json({ message: "Access denied for this role" });
+    }
+
+    res.json(clients);
+  } catch (err) {
+    console.error("Error fetching clients:", err);
+    res.status(500).json({ message: "Server error fetching clients" });
   }
 };
 
@@ -88,11 +129,12 @@ const updateClient = async (req, res) => {
       { email: clientEmail, userName: clientName }
     );
 
-    res.status(200).json({message: "Client updated  successfully",updatedClient });
+    res
+      .status(200)
+      .json({ message: "Client updated  successfully", updatedClient });
   } catch (error) {
-
     console.error("Error updating Client:", error);
-    res.status(500).json({message: "Server error while updating client"})
+    res.status(500).json({ message: "Server error while updating client" });
   }
 };
 const deleteClient = async (req, res) => {

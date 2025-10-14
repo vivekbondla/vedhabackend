@@ -44,8 +44,20 @@ const createAuditor = async (req, res) => {
   }
 };
 const getAllAuditors = async (req, res) => {
+
+  const userRole = req.user.role;
+  const userRefId = req.user.refId;
+  
   try {
-    const auditors = await Auditor.find();
+    let auditors = []
+    if(userRole === "admin"){
+
+     auditors = await Auditor.find();
+    }else if(userRole === "auditor"){
+      auditors = await Auditor.find({_id:userRefId});
+    }else if(userRole === "client"){
+      
+    }
     res.status(200).json(auditors);
   } catch (error) {
     console.log("error:", error);

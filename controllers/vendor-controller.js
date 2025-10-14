@@ -1,10 +1,40 @@
 const express = require("express");
 const Vendor = require("../models/VendorModel");
 const User = require("../models/UserModel");
+const Site = require("../models/SiteModel");
 
 const getAllVendors = async (req, res) => {
+  const { role, email, refId, username } = req.user;
+  let query = {};
+  let vendors = [];
   try {
-    const vendors = await Vendor.find();
+    if (role === "auditor") {
+      query.auditor = email; // match based on JWT payload
+    } else if (role === "vendor") {
+      vendors = await Vendor.find({ _id: refId });
+
+      // query.vendorEmail = email;
+    } else if (role === "client") {
+      // client gets only their vendors (via sites)
+
+      const sites = await Site.find({ clients: refId }).populate("vendors");
+      const vendorSet = new Set();
+
+      sites.forEach((site) => {
+        site.vendors.forEach((vendor) => {
+          vendorSet.add(vendor._id.toString());
+        });
+      });
+
+      vendors = await Vendor.find({
+        _id: { $in: Array.from(vendorSet) },
+      });
+    } else if (role === "admin") {
+      vendors = await Vendor.find({}); //fetch all for admin
+    } else {
+      return res.status(403).json({ message: "Access denied for this role." });
+    }
+
     res.status(200).json(vendors);
   } catch (error) {
     console.log("error:", error);

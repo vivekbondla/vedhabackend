@@ -20,6 +20,9 @@ const userSchema = new mongoose.Schema(
       type: String,
       enum: ["Vendor", "Client", "Auditor"],
     },
+    username: {
+      type: String
+    }
   },
   {
     timestamps: true,
